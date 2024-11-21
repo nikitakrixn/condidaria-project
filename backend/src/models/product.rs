@@ -1,8 +1,9 @@
+use poem_openapi::Object;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Object, Serialize, Deserialize, FromRow)]
 pub struct Product {
     pub id: Uuid,
     pub name: String,

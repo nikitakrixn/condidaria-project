@@ -1,81 +1,150 @@
-use poem::http::StatusCode;
-use poem_openapi::{param::Path, payload::{Json, PlainText}, ApiResponse, OpenApi};
-use sqlx::Error;
+use poem_openapi::{payload::Json, OpenApi, ApiResponse, Object, Tags};
 use uuid::Uuid;
+use crate::models::product::Product;
+use crate::database::product_repository::ProductRepository;
+use sqlx::PgPool;
 
-use crate::{database::product_repository::ProductRepository, models::product::Product};
+
+#[derive(Tags)]
+enum ApiTags {
+    Products,
+}
 
 #[derive(ApiResponse)]
-enum GetProductResponse {
+enum ProductResponse {
     #[oai(status = 200)]
-    Product(Json<Product>),
-
+    Ok(Json<Product>),
     #[oai(status = 404)]
-    NotFound(PlainText<String>),
+    NotFound,
+    #[oai(status = 500)]
+    InternalServerError,
 }
 
 
-pub struct ProductsApi {
+#[derive(ApiResponse)]
+enum ProductsResponse {
+    #[oai(status = 200)]
+    Ok(Json<Vec<Product>>),
+    #[oai(status = 500)]
+    InternalServerError,
+}
+
+#[derive(Object)]
+struct CreateProductRequest {
+    name: String,
+    description: String,
+    price: f64,
+    category_id: Uuid,
+    image_url: Option<String>,
+}
+
+#[derive(Object)]
+struct UpdateProductRequest {
+    name: String,
+    description: String,
+    price: f64,
+    category_id: Uuid,
+    image_url: Option<String>,
+}
+
+
+pub struct ProductApi {
     repository: ProductRepository,
 }
 
-impl ProductsApi {
-    pub fn new(repository: ProductRepository) -> Self {
-        Self { repository }
+impl ProductApi {
+    pub fn new(pool: PgPool) -> Self {
+        ProductApi { repository: ProductRepository::new(pool) }
     }
 }
 
+
 #[OpenApi]
 impl ProductApi {
-    #[oai(path = "/products", method = "get")]
-    async fn get_products(&self) -> Result<Json<Vec<Product>>, poem::Error> {
+    #[oai(path = "/products", method = "get", tag = "ApiTags::Products")]
+    async fn get_products(&self) -> ProductsResponse {
         match self.repository.get_all().await {
-            Ok(products) => Ok(Json(products)),
-            Err(e) => Err(e.into()),
+            Ok(products) => ProductsResponse::Ok(Json(products)),
+            Err(_) => ProductsResponse::InternalServerError,
         }
     }
 
-    #[oai(path = "/products/:id", method = "get")]
-    async fn get_product(&self, id: Path<String>) -> GetProductResponse {
-        let result = self.repository.get_by_id(id.0).await;
+    // #[oai(path = "/products/:id", method = "get", tag = "ApiTags::Products")]
+    // async fn get_product(&self, id: Uuid) -> ProductResponse {
+    //     match self.repository.get_by_id(id).await {
+    //         Ok(product) => ProductResponse::Ok(Json(product)),
+    //         Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+    //         Err(_) => ProductResponse::InternalServerError,
+    //     }
+    // }
 
-        match result {
-            Ok(Some(product)) => GetProductResponse::Product(Json(product)),
-            Ok(None) => GetProductResponse::NotFound(PlainText(format!("Product with ID {} not found", id.0))),
+
+
+    #[oai(path = "/products", method = "post", tag = "ApiTags::Products")]
+    async fn create_product(&self, product: Json<CreateProductRequest>) -> ProductResponse {
+        let product = Product {
+            id: Uuid::new_v4(),
+            name: product.name.clone(),
+            description: product.description.clone(),
+            price: product.price,
+            category_id: product.category_id,
+            image_url: product.image_url.clone(),
+        };
+
+        match product.validate() {
+            Ok(_) => {
+                match self.repository.create(product).await {
+                    Ok(product) => ProductResponse::Ok(Json(product)),
+                    Err(_) => ProductResponse::InternalServerError,
+                }
+            }
             Err(e) => {
-                // Логирование ошибки
-                eprintln!("Database error: {}", e);
-                GetProductResponse::NotFound(PlainText("Failed to fetch product".to_string()))
-            },
+                println!("{}", e);
+                ProductResponse::InternalServerError
+            }
         }
     }
 
-    #[oai(path = "/products", method = "post")]
-    async fn create_product(&self, product: Json<Product>) -> Result<Json<Product>> {
-        match self.repository.create(&product).await {
-            Ok(product) => Ok(Json(product)),
-            Err(e) => Err(Error::from(e).into()),
-        }
-    }
 
-    #[oai(path = "/products/:id", method = "put")]
-    async fn update_product(&self, id: Path<String>, product: Json<Product>) -> Result<Json<Product>> {
-        self.repository.update(id.0, &product).await.map_err(Error::from)?;
+    // #[oai(path = "/products/:id", method = "put", tag = "ApiTags::Products")]
+    // async fn update_product(&self, id: Uuid, product: Json<UpdateProductRequest>) -> ProductResponse {
+    //     let product = Product {
+    //         id: id, // Use the ID from the path
+    //         name: product.name.clone(),
+    //         description: product.description.clone(),
+    //         price: product.price,
+    //         category_id: product.category_id,
+    //         image_url: product.image_url.clone(),
+    //     };
 
-        // Извлекаем обновленный продукт
-        let updated_product = self.repository.get_by_id(id.0).await
-            .map_err(|err| Error::from(err))?
-            .ok_or(poem::Error::from_string("Product not found after update", StatusCode::NOT_FOUND))?;
+    //     match product.validate() {
+    //         Ok(_) => {
+    //             match self.repository.update(id, &product).await {
+    //                 Ok(_) => ProductResponse::Ok(Json(product)), // Return the updated product
+    //                 Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+    //                 Err(_) => ProductResponse::InternalServerError,
+    //             }
+    //         }
+    //         Err(e) => {
+    //             println!("{}", e);
+    //             ProductResponse::InternalServerError
+    //         }
+    //     }
+    // }
 
-        Ok(Json(updated_product))
-    }
-
-    #[oai(path = "/products/:id", method = "delete")]
-    async fn delete_product(&self, id: Path<String>) -> Result<()> {
-        match self.repository.delete(id.0).await {
-            Ok(_) => Ok(()),
-            Err(sqlx::Error::RowNotFound) => Err(poem::Error::from_string("Product not found", StatusCode::NOT_FOUND)),
-            Err(e) => Err(Error::from(e).into()),
-        }
-    }
+    // #[oai(path = "/products/:id", method = "delete", tag = "ApiTags::Products")]
+    // async fn delete_product(&self, id: Uuid) -> ProductResponse {
+    //     match self.repository.delete(id).await {
+    //         Ok(_) => ProductResponse::Ok(Json(Product { // Return a placeholder product since the real one is deleted.  Consider returning just a 204 No Content.
+    //             id, 
+    //             name: "".to_string(),
+    //             description: "".to_string(),
+    //             price: 0.0,
+    //             category_id: Uuid::nil(),
+    //             image_url: None,
+    //         })),
+    //         Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+    //         Err(_) => ProductResponse::InternalServerError,
+    //     }
+    // }
 }
