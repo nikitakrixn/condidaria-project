@@ -1,4 +1,4 @@
-use poem::{listener::TcpListener, Route, Server};
+use poem::{listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use poem_openapi::OpenApiService;
 use sqlx::postgres::PgPoolOptions;
 use dotenv::dotenv;
@@ -19,6 +19,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to create pool");
 
+    let cors = Cors::new().allow_origin("http://localhost:3000").allow_methods(["GET", "POST", "PUT", "DELETE", "OPTIONS"].iter().cloned());
+
     let products_api = api::products::ProductApi::new(pool.clone());
     let categories_api = api::category::CategoryApi::new(pool);
 
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ui = api_service.swagger_ui();
 
-    let app = Route::new().nest("/api", api_service).nest("/", ui);
+    let app = Route::new().nest("/api", api_service).nest("/", ui).with(cors);
     Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await?;
