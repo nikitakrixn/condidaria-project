@@ -18,8 +18,14 @@ impl Product {
         if self.name.is_empty() {
             return Err("Product name cannot be empty".to_string());
         }
+        if self.name.len() > 100 {
+            return Err("Product name cannot exceed 100 characters".to_string());
+        }
         if self.price <= 0.0 {
             return Err("Product price must be greater than 0".to_string());
+        }
+        if self.description.len() > 500 {
+            return Err("Product description cannot exceed 500 characters".to_string());
         }   
         Ok(())
     }
