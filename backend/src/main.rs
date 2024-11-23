@@ -20,13 +20,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Failed to create pool");
 
     let products_api = api::products::ProductApi::new(pool.clone());
+    let categories_api = api::category::CategoryApi::new(pool);
 
-    let api_service = OpenApiService::new(products_api, "My API", "1.0").server("0.0.0.0:8080");
+    let api_service = OpenApiService::new((categories_api,products_api), "КондиДария API", "1.0").server("http://localhost:8000/api");
 
     let ui = api_service.swagger_ui();
 
     let app = Route::new().nest("/api", api_service).nest("/", ui);
-    Server::new(TcpListener::bind("0.0.0.0:8080"))
+    Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await?;
 

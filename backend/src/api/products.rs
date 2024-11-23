@@ -23,7 +23,7 @@ enum ProductResponse {
 
 
 #[derive(ApiResponse)]
-enum ProductsResponse {
+pub enum ProductsResponse {
     #[oai(status = 200)]
     Ok(Json<Vec<Product>>),
     #[oai(status = 500)]
