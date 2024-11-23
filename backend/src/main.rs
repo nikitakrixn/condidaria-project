@@ -12,7 +12,6 @@ mod database;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
-    // Настройка подключения к базе данных
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -20,7 +19,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .expect("Failed to create pool");
 
-    // Создание API с репозиторием
     let products_api = api::products::ProductApi::new(pool.clone());
 
     let api_service = OpenApiService::new(products_api, "My API", "1.0").server("0.0.0.0:8080");

@@ -1,3 +1,4 @@
+use poem_openapi::param::Path;
 use poem_openapi::{payload::Json, OpenApi, ApiResponse, Object, Tags};
 use uuid::Uuid;
 use crate::models::product::Product;
@@ -69,14 +70,14 @@ impl ProductApi {
         }
     }
 
-    // #[oai(path = "/products/:id", method = "get", tag = "ApiTags::Products")]
-    // async fn get_product(&self, id: Uuid) -> ProductResponse {
-    //     match self.repository.get_by_id(id).await {
-    //         Ok(product) => ProductResponse::Ok(Json(product)),
-    //         Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-    //         Err(_) => ProductResponse::InternalServerError,
-    //     }
-    // }
+    #[oai(path = "/products/:id", method = "get", tag = "ApiTags::Products")]
+    async fn get_product(&self, id: Path<Uuid>) -> ProductResponse {
+        match self.repository.get_by_id(id.0).await {
+            Ok(product) => ProductResponse::Ok(Json(product)),
+            Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+            Err(_) => ProductResponse::InternalServerError,
+        }
+    }
 
 
 
@@ -106,45 +107,45 @@ impl ProductApi {
     }
 
 
-    // #[oai(path = "/products/:id", method = "put", tag = "ApiTags::Products")]
-    // async fn update_product(&self, id: Uuid, product: Json<UpdateProductRequest>) -> ProductResponse {
-    //     let product = Product {
-    //         id: id, // Use the ID from the path
-    //         name: product.name.clone(),
-    //         description: product.description.clone(),
-    //         price: product.price,
-    //         category_id: product.category_id,
-    //         image_url: product.image_url.clone(),
-    //     };
+    #[oai(path = "/products/:id", method = "put", tag = "ApiTags::Products")]
+    async fn update_product(&self, id: Path<Uuid>, product: Json<UpdateProductRequest>) -> ProductResponse {
+        let product = Product {
+            id: id.0, // Use the ID from the path
+            name: product.name.clone(),
+            description: product.description.clone(),
+            price: product.price,
+            category_id: product.category_id,
+            image_url: product.image_url.clone(),
+        };
 
-    //     match product.validate() {
-    //         Ok(_) => {
-    //             match self.repository.update(id, &product).await {
-    //                 Ok(_) => ProductResponse::Ok(Json(product)), // Return the updated product
-    //                 Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-    //                 Err(_) => ProductResponse::InternalServerError,
-    //             }
-    //         }
-    //         Err(e) => {
-    //             println!("{}", e);
-    //             ProductResponse::InternalServerError
-    //         }
-    //     }
-    // }
+        match product.validate() {
+            Ok(_) => {
+                match self.repository.update(id.0, &product).await {
+                    Ok(_) => ProductResponse::Ok(Json(product)), // Return the updated product
+                    Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+                    Err(_) => ProductResponse::InternalServerError,
+                }
+            }
+            Err(e) => {
+                println!("{}", e);
+                ProductResponse::InternalServerError
+            }
+        }
+    }
 
-    // #[oai(path = "/products/:id", method = "delete", tag = "ApiTags::Products")]
-    // async fn delete_product(&self, id: Uuid) -> ProductResponse {
-    //     match self.repository.delete(id).await {
-    //         Ok(_) => ProductResponse::Ok(Json(Product { // Return a placeholder product since the real one is deleted.  Consider returning just a 204 No Content.
-    //             id, 
-    //             name: "".to_string(),
-    //             description: "".to_string(),
-    //             price: 0.0,
-    //             category_id: Uuid::nil(),
-    //             image_url: None,
-    //         })),
-    //         Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-    //         Err(_) => ProductResponse::InternalServerError,
-    //     }
-    // }
+    #[oai(path = "/products/:id", method = "delete", tag = "ApiTags::Products")]
+    async fn delete_product(&self, id: Path<Uuid>) -> ProductResponse {
+        match self.repository.delete(id.0).await {
+            Ok(_) => ProductResponse::Ok(Json(Product { // Return a placeholder product since the real one is deleted.  Consider returning just a 204 No Content.
+                id: Uuid::nil(), 
+                name: "".to_string(),
+                description: "".to_string(),
+                price: 0.0,
+                category_id: Uuid::nil(),
+                image_url: None,
+            })),
+            Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
+            Err(_) => ProductResponse::InternalServerError,
+        }
+    }
 }

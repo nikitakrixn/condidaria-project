@@ -24,7 +24,9 @@ impl Product {
         Ok(())
     }
 
-    pub fn formatted_price(&self) -> String {
-        format!("{:.2} руб.", self.price)
-    }
+    // TODO: implement formatted_price
+
+    // pub fn formatted_price(&self) -> String {
+    //     format!("{:.2} руб.", self.price)
+    // }
 }
