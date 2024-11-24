@@ -13,6 +13,24 @@ pub struct Product {
     pub image_url: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Object)]
+pub struct CreateProductRequest {
+    pub name: String,
+    pub description: String,
+    pub price: f64,
+    pub category_id: Uuid,
+    pub image_url: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Object)]
+pub struct UpdateProductRequest {
+    pub name: String,
+    pub description: String,
+    pub price: f64,
+    pub category_id: Uuid,
+    pub image_url: Option<String>,
+}
+
 impl Product {
     pub fn validate(&self) -> Result<(), String> {
         if self.name.is_empty() {
