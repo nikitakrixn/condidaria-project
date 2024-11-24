@@ -4,6 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::category::Category;
 use crate::database::category_repository::CategoryRepository;
+use crate::utils::errors::ApiError;
 
 use super::products::ProductsResponse;
 
@@ -136,7 +137,7 @@ impl CategoryApi {
     async fn get_products_by_category(&self, id: Path<Uuid>) -> ProductsResponse {
         match self.repository.get_products_by_category(id.0).await {
             Ok(products) => ProductsResponse::Ok(Json(products)),
-            Err(_) => ProductsResponse::InternalServerError,
+            Err(_) => ProductsResponse::InternalServerError(Json(ApiError::new(500, "Failed to fetch product".to_string()))),
         }
     }
     

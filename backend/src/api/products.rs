@@ -1,8 +1,9 @@
 use poem_openapi::param::Path;
-use poem_openapi::{payload::Json, OpenApi, ApiResponse, Object, Tags};
+use poem_openapi::{payload::Json, OpenApi, ApiResponse, Tags};
 use uuid::Uuid;
-use crate::models::product::Product;
+use crate::models::product::{CreateProductRequest, Product, UpdateProductRequest};
 use crate::database::product_repository::ProductRepository;
+use crate::utils::errors::ApiError;
 use sqlx::PgPool;
 
 
@@ -15,10 +16,16 @@ enum ApiTags {
 enum ProductResponse {
     #[oai(status = 200)]
     Ok(Json<Product>),
+    #[oai(status = 201)]
+    Created(Json<Product>),
+    #[oai(status = 204)]
+    NoContent,
+    #[oai(status = 401)]
+    BadRequest(Json<ApiError>),
     #[oai(status = 404)]
     NotFound,
     #[oai(status = 500)]
-    InternalServerError,
+    InternalServerError(Json<ApiError>),
 }
 
 
@@ -27,27 +34,8 @@ pub enum ProductsResponse {
     #[oai(status = 200)]
     Ok(Json<Vec<Product>>),
     #[oai(status = 500)]
-    InternalServerError,
+    InternalServerError(Json<ApiError>),
 }
-
-#[derive(Object)]
-struct CreateProductRequest {
-    name: String,
-    description: String,
-    price: f64,
-    category_id: Uuid,
-    image_url: Option<String>,
-}
-
-#[derive(Object)]
-struct UpdateProductRequest {
-    name: String,
-    description: String,
-    price: f64,
-    category_id: Uuid,
-    image_url: Option<String>,
-}
-
 
 pub struct ProductApi {
     repository: ProductRepository,
@@ -66,7 +54,7 @@ impl ProductApi {
     async fn get_products(&self) -> ProductsResponse {
         match self.repository.get_all().await {
             Ok(products) => ProductsResponse::Ok(Json(products)),
-            Err(_) => ProductsResponse::InternalServerError,
+            Err(_) => ProductsResponse::InternalServerError(Json(ApiError::new(500, "Failed to fetch products".to_string()))),
         }
     }
 
@@ -75,7 +63,7 @@ impl ProductApi {
         match self.repository.get_by_id(id.0).await {
             Ok(product) => ProductResponse::Ok(Json(product)),
             Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-            Err(_) => ProductResponse::InternalServerError,
+            Err(_) => ProductResponse::InternalServerError(Json(ApiError::new(500, "Failed to fetch product".to_string()))),
         }
     }
 
@@ -95,13 +83,13 @@ impl ProductApi {
         match product.validate() {
             Ok(_) => {
                 match self.repository.create(product).await {
-                    Ok(product) => ProductResponse::Ok(Json(product)),
-                    Err(_) => ProductResponse::InternalServerError,
+                    Ok(product) => ProductResponse::Created(Json(product)),
+                    Err(_) => ProductResponse::InternalServerError(Json(ApiError::new(500, "Failed to create product".to_string()))),
                 }
             }
             Err(e) => {
                 println!("{}", e);
-                ProductResponse::InternalServerError
+                ProductResponse::BadRequest(Json(ApiError::new(400, e)))
             }
         }
     }
@@ -123,12 +111,11 @@ impl ProductApi {
                 match self.repository.update(id.0, &product).await {
                     Ok(_) => ProductResponse::Ok(Json(product)), // Return the updated product
                     Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-                    Err(_) => ProductResponse::InternalServerError,
+                    Err(_) => ProductResponse::InternalServerError(Json(ApiError::new(500, "Failed to update product".to_string()))),
                 }
             }
             Err(e) => {
-                println!("{}", e);
-                ProductResponse::InternalServerError
+                ProductResponse::BadRequest(Json(ApiError::new(400, e)))
             }
         }
     }
@@ -136,16 +123,9 @@ impl ProductApi {
     #[oai(path = "/products/:id", method = "delete", tag = "ApiTags::Products")]
     async fn delete_product(&self, id: Path<Uuid>) -> ProductResponse {
         match self.repository.delete(id.0).await {
-            Ok(_) => ProductResponse::Ok(Json(Product { // Return a placeholder product since the real one is deleted.  Consider returning just a 204 No Content.
-                id: Uuid::nil(), 
-                name: "".to_string(),
-                description: "".to_string(),
-                price: 0.0,
-                category_id: Uuid::nil(),
-                image_url: None,
-            })),
+            Ok(_) => ProductResponse::NoContent,
             Err(sqlx::Error::RowNotFound) => ProductResponse::NotFound,
-            Err(_) => ProductResponse::InternalServerError,
+            Err(_) => ProductResponse::InternalServerError(Json(ApiError::new(500, "Failed to delete product".to_string()))),
         }
     }
 }
