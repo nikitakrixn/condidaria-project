@@ -6,6 +6,7 @@ use dotenv::dotenv;
 mod models;
 mod api;
 mod database;
+mod utils;
 
 
 #[tokio::main]
@@ -22,13 +23,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cors = Cors::new().allow_origin("http://localhost:3000").allow_methods(["GET", "POST", "PUT", "DELETE", "OPTIONS"].iter().cloned());
 
     let products_api = api::products::ProductApi::new(pool.clone());
-    let categories_api = api::category::CategoryApi::new(pool);
+    let categories_api = api::category::CategoryApi::new(pool.clone());
 
     let api_service = OpenApiService::new((categories_api,products_api), "КондиДария API", "1.0").server("http://localhost:8000/api");
 
     let ui = api_service.swagger_ui();
+    let spec_json = api_service.spec_endpoint();
 
+<<<<<<< HEAD
     let app = Route::new().nest("/api", api_service).nest("/", ui).with(cors);
+=======
+    let app = Route::new().nest("/api", api_service).nest("/", ui).nest("/openapi.json", spec_json);
+>>>>>>> 5a413c858415b952e6eeafe096725ed1b9c2ca71
     Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await?;
