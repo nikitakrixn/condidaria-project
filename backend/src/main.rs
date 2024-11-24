@@ -30,11 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ui = api_service.swagger_ui();
     let spec_json = api_service.spec_endpoint();
 
-<<<<<<< HEAD
-    let app = Route::new().nest("/api", api_service).nest("/", ui).with(cors);
-=======
-    let app = Route::new().nest("/api", api_service).nest("/", ui).nest("/openapi.json", spec_json);
->>>>>>> 5a413c858415b952e6eeafe096725ed1b9c2ca71
+    let app = Route::new().nest("/api", api_service).nest("/", ui).nest("/openapi.json", spec_json).with(cors);
     Server::new(TcpListener::bind("0.0.0.0:8000"))
         .run(app)
         .await?;
