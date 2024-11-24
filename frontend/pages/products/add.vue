@@ -1,4 +1,3 @@
-<!-- pages/products/add.vue -->
 <template>
     <div class="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg mt-8">
       <h1 class="text-3xl font-bold mb-6 text-center text-pink-600">Add New Product</h1>
