@@ -2,7 +2,7 @@ use poem_openapi::param::Path;
 use poem_openapi::{payload::Json, OpenApi, ApiResponse, Object, Tags};
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::category::Category;
+use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
 use crate::database::category_repository::CategoryRepository;
 use crate::utils::errors::ApiError;
 
@@ -17,10 +17,14 @@ enum ApiTags {
 enum CategoryResponse {
     #[oai(status = 200)]
     Ok(Json<Category>),
+    #[oai(status = 204)]
+    NoContent,
+    #[oai(status = 401)]
+    BadRequest(Json<ApiError>),
     #[oai(status = 404)]
     NotFound,
     #[oai(status = 500)]
-    InternalServerError,
+    InternalServerError(Json<ApiError>),
 }
 
 #[derive(ApiResponse)]
@@ -28,19 +32,7 @@ enum CategoriesResponse {
     #[oai(status = 200)]
     Ok(Json<Vec<Category>>),
     #[oai(status = 500)]
-    InternalServerError,
-}
-
-#[derive(Object)]
-struct CreateCategoryRequest {
-    name: String,
-    description: Option<String>,
-}
-
-#[derive(Object)]
-struct UpdateCategoryRequest {
-    name: String,
-    description: Option<String>,
+    InternalServerError(Json<ApiError>),
 }
 
 pub struct CategoryApi {
@@ -61,7 +53,7 @@ impl CategoryApi {
     async fn get_categories(&self) -> CategoriesResponse {
         match self.repository.get_all().await {
             Ok(categories) => CategoriesResponse::Ok(Json(categories)),
-            Err(_) => CategoriesResponse::InternalServerError,
+            Err(_) => CategoriesResponse::InternalServerError(Json(ApiError::new(500, "Failed to fetch categories".to_string()))),
         }
     }
 
@@ -70,7 +62,7 @@ impl CategoryApi {
         match self.repository.get_by_id(id.0).await {
             Ok(category) => CategoryResponse::Ok(Json(category)),
             Err(sqlx::Error::RowNotFound) => CategoryResponse::NotFound,
-            Err(_) => CategoryResponse::InternalServerError,
+            Err(_) => CategoryResponse::InternalServerError(Json(ApiError::new(500, "Failed to fetch category".to_string()))),
         }
     }
 
@@ -86,11 +78,10 @@ impl CategoryApi {
         match new_category.validate() {
             Ok(_) => match self.repository.create(new_category).await {
                 Ok(category) => CategoryResponse::Ok(Json(category)),
-                Err(_) => CategoryResponse::InternalServerError,
+                Err(_) => CategoryResponse::InternalServerError(Json(ApiError::new(500, "Failed to create category".to_string()))),
             },
             Err(e) => {
-                println!("{}", e);
-                CategoryResponse::InternalServerError
+                CategoryResponse::BadRequest(Json(ApiError::new(400, e)))
             }
         }
     }
@@ -111,11 +102,10 @@ impl CategoryApi {
             Ok(_) => match self.repository.update(id.0, &updated_category).await {
                 Ok(_) => CategoryResponse::Ok(Json(updated_category)),
                 Err(sqlx::Error::RowNotFound) => CategoryResponse::NotFound,
-                Err(_) => CategoryResponse::InternalServerError,
+                Err(_) => CategoryResponse::InternalServerError(Json(ApiError::new(500, "Failed to update category".to_string()))),
             },
             Err(e) => {
-                println!("{}", e);
-                CategoryResponse::InternalServerError
+                CategoryResponse::BadRequest(Json(ApiError::new(400, e)))
             }
         }
     }
@@ -123,13 +113,9 @@ impl CategoryApi {
     #[oai(path = "/categories/:id", method = "delete", tag = "ApiTags::Categories")]
     async fn delete_category(&self, id: Path<Uuid>) -> CategoryResponse {
         match self.repository.delete(id.0).await {
-            Ok(_) => CategoryResponse::Ok(Json(Category {
-                id: id.0,
-                name: "".to_string(),
-                description: None,
-            })),
+            Ok(_) => CategoryResponse::NoContent,
             Err(sqlx::Error::RowNotFound) => CategoryResponse::NotFound,
-            Err(_) => CategoryResponse::InternalServerError,
+            Err(_) => CategoryResponse::InternalServerError(Json(ApiError::new(500, "Failed to delete category".to_string()))),
         }
     }
 

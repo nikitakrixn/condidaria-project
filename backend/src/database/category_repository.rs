@@ -55,7 +55,14 @@ impl CategoryRepository {
         Ok(())
     }
 
-    pub async fn get_all_paginated(
+    pub async fn get_products_by_category(&self, category_id: Uuid) -> Result<Vec<Product>, sqlx::Error> {
+        sqlx::query_as::<_, Product>("SELECT * FROM products WHERE category_id = $1")
+            .bind(category_id)
+            .fetch_all(&self.pool)
+            .await
+    }
+
+    /*pub async fn get_all_paginated(
         &self,
         page: usize,
         per_page: usize,
@@ -117,5 +124,5 @@ impl CategoryRepository {
         .await?;
 
         Ok(result > 0)
-    }
+    }*/
 }

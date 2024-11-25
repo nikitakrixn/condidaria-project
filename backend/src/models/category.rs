@@ -10,6 +10,18 @@ pub struct Category {
     pub description: Option<String>,
 }
 
+#[derive(Object)]
+pub struct CreateCategoryRequest {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+#[derive(Object)]
+pub struct UpdateCategoryRequest {
+    pub name: String,
+    pub description: Option<String>,
+}
+
 impl Category {
     pub fn validate(&self) -> Result<(), String> {
         if self.name.is_empty() {
