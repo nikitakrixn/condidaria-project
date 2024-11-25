@@ -1,5 +1,5 @@
 use poem_openapi::param::Path;
-use poem_openapi::{payload::Json, OpenApi, ApiResponse, Object, Tags};
+use poem_openapi::{payload::Json, OpenApi, ApiResponse, Tags};
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::category::{Category, CreateCategoryRequest, UpdateCategoryRequest};
