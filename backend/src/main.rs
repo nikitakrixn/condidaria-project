@@ -8,6 +8,7 @@ mod api;
 mod database;
 mod utils;
 
+const IS_DEVELOPMENT:bool = cfg!(debug_assertions);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,8 +18,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
-        .await
-        .expect("Failed to create pool");
+        .await?;
+
+    let host_address = IS_DEVELOPMENT.then_some("localhost").unwrap_or("0.0.0.0");
+
+    let listener_address = format!("{host_address}:8000");
+
+    let listener = TcpListener::bind(listener_address);
 
     let cors = Cors::new().allow_origin("http://localhost:3000").allow_methods(["GET", "POST", "PUT", "DELETE", "OPTIONS"].iter().cloned());
 
@@ -31,7 +37,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let spec_json = api_service.spec_endpoint();
 
     let app = Route::new().nest("/api", api_service).nest("/", ui).nest("/openapi.json", spec_json).with(cors);
-    Server::new(TcpListener::bind("0.0.0.0:8000"))
+    
+    Server::new(listener)
         .run(app)
         .await?;
 

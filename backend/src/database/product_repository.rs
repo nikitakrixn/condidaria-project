@@ -23,14 +23,13 @@ impl ProductRepository {
     }
 
     pub async fn create(&self, product: Product) -> Result<Product, sqlx::Error> {
-        let product = sqlx::query_as::<_, Product>("Insert Into products (name, description, price, category_id, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *")
+        sqlx::query_as::<_, Product>("Insert Into products (name, description, price, category_id, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *")
         .bind(&product.name)
         .bind(&product.description)
         .bind(&product.price)
         .bind(&product.category_id)
         .bind(&product.image_url)
-        .fetch_one(&self.pool).await;
-        product
+        .fetch_one(&self.pool).await
     }
 
     pub async fn update(&self, id: Uuid, product: &Product) -> Result<(), sqlx::Error> {
